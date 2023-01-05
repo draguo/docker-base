@@ -7,7 +7,7 @@ ENV TZ=Asia/Shanghai
 COPY conf/ /opt/docker/
 COPY conf/etc/nginx/nginx.conf /etc/nginx/nginx.conf
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
     && apk upgrade \
     && apk add bash \
         ca-certificates \
