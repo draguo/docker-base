@@ -4,10 +4,10 @@ WORKDIR /var/www/html
 
 ENV TZ=Asia/Shanghai
 
-COPY conf/ /opt/docker/
-COPY conf/etc/nginx/nginx.conf /etc/nginx/nginx.conf
+ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+## 安装基础环境
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     && apk upgrade \
     && apk add bash \
     ca-certificates \
@@ -17,10 +17,10 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
     && mkdir -p /etc/pam.d/ \
     && echo 'auth sufficient pam_rootok.so' >> /etc/pam.d/su
 
+
 RUN set -x \
     # Install services \
     && apk add \
-    supervisor\
     wget \
     curl \
     sed \
@@ -38,7 +38,8 @@ RUN set -x \
     ldns \
     openssh-client \
     rsync \
-    patch
+    patch \
+    supervisor
 
 
 RUN set -x \
@@ -63,48 +64,11 @@ RUN set -x \
     libzip \
     libmemcached \
     yaml \
-    # Build dependencies
-    autoconf \
-    g++ \
-    gcc \
-    musl-dev \
-    libffi-dev \
-    cargo \
-    make \
-    libtool \
-    pcre-dev \
-    gettext-dev \
-    freetype-dev \
-    libjpeg-turbo-dev \
-    libpng-dev \
-    vips-dev \
-    krb5-dev \
-    openssl-dev \
-    imap-dev \
-    imagemagick-dev \
-    rabbitmq-c-dev \
-    openldap-dev \
-    icu-dev \
-    postgresql-dev \
-    libxml2-dev \
-    ldb-dev \
-    pcre-dev \
-    libxslt-dev \
-    libzip-dev \
-    libmemcached-dev \
-    yaml-dev \
-    # python
-    python3 \
-    py3-pip \
-    python3-dev \
     # Install extensions
-    && PKG_CONFIG_PATH=/usr/local docker-php-ext-configure intl \
-    && docker-php-ext-configure gd --with-jpeg --with-freetype --with-webp \
-    && docker-php-ext-configure ldap \
-    && PHP_OPENSSL=yes docker-php-ext-configure imap --with-kerberos --with-imap-ssl \
-    && docker-php-ext-install \
+    && install-php-extensions \
     bcmath \
     bz2 \
+    soap \
     calendar \
     exif \
     ffi \
@@ -117,68 +81,25 @@ RUN set -x \
     pdo_mysql \
     pdo_pgsql \
     pgsql \
-    soap \
     sockets \
-    tokenizer \
     sysvmsg \
     sysvsem \
     sysvshm \
     shmop \
-    xmlrpc \
     xsl \
     zip \
     gd \
     gettext \
     opcache \
-    && pecl install apcu \
-    && printf "\n" | pecl install vips \
-    && pecl install redis \
-    && pecl install imagick \
-    && pecl install amqp \
-    && pecl install yaml \
-    && pecl install igbinary\
-    && pecl install memcached-3.2.0\
-    && docker-php-ext-enable \
-    apcu \
     redis \
     imagick \
-    amqp \
-    vips \
     igbinary \
     memcached \
-    && pip install requests serial pyserial pymysql cryptography \
-    # Uninstall dev and header packages
-    && apk del -f --purge \
-    autoconf \
-    g++ \
-    gcc \
-    musl-dev \
-    libffi-dev \
-    cargo \
-    make \
-    libtool \
-    pcre-dev \
-    gettext-dev \
-    freetype-dev \
-    libjpeg-turbo-dev \
-    libpng-dev \
-    vips-dev \
-    krb5-dev \
-    openssl-dev \
-    imap-dev \
-    rabbitmq-c-dev \
-    imagemagick-dev \
-    openldap-dev \
-    icu-dev \
-    postgresql-dev \
-    libxml2-dev \
-    ldb-dev \
-    pcre-dev \
-    libxslt-dev \
-    libzip-dev \
-    libmemcached-dev \
-    yaml-dev \
-    && curl -o /usr/bin/composer https://mirrors.aliyun.com/composer/composer.phar \
+    && docker-php-source delete \
+    && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
+
+# composer
+RUN curl -o /usr/bin/composer https://mirrors.aliyun.com/composer/composer.phar \
     && chmod +x /usr/bin/composer
 
 # nginx
@@ -187,6 +108,18 @@ RUN set -x \
     && apk add \
     nginx
 
+# python
+RUN set -x \
+    # Install python
+    && apk add gcc musl-dev python3-dev libffi-dev openssl-dev cargo pkgconfig \
+    && apk add python3 py3-pip \
+    && pip install requests pyserial pymysql cryptography \
+    && apk del gcc musl-dev python3-dev libffi-dev openssl-dev cargo pkgconfig
+
+# 配置文件
+COPY conf/ /opt/docker/
+COPY conf/etc/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY conf/etc/php/php.ini ${PHP_INI_DIR}/conf.d/99-php.ini
 
 EXPOSE 80 443
 
