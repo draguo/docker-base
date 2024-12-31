@@ -1,4 +1,3 @@
 php8
-swoole
+frankenphp
 octane
-laravel 10
