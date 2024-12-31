@@ -54,6 +54,20 @@ RUN apt-get update; \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && rm /var/log/lastlog /var/log/faillog
 
+
+RUN arch="$(uname -m)" \
+    && case "$arch" in \
+    armhf) _cronic_fname='supercronic-linux-arm' ;; \
+    aarch64) _cronic_fname='supercronic-linux-arm64' ;; \
+    x86_64) _cronic_fname='supercronic-linux-amd64' ;; \
+    x86) _cronic_fname='supercronic-linux-386' ;; \
+    *) echo >&2 "error: unsupported architecture: $arch"; exit 1 ;; \
+    esac \
+    && wget -q "https://github.com/aptible/supercronic/releases/download/v0.2.33/${_cronic_fname}" \
+    -O /usr/bin/supercronic \
+    && chmod +x /usr/bin/supercronic \
+    && mkdir -p /etc/supercronic
+
 COPY supervisord.*.conf /etc/supervisor/conf.d/
 COPY php.ini ${PHP_INI_DIR}/conf.d/99-octane.ini
 COPY start-container /usr/local/bin/start-container
