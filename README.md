@@ -1,4 +1,3 @@
 php8
-swoole
-octane
+nginx
 laravel 10
