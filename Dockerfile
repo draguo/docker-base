@@ -73,7 +73,7 @@ RUN arch="$(uname -m)" \
 # nginx
 RUN set -x \
     # Install nginx
-    && apk add \
+    && apt-get install \
     nginx
 
 # 复制配置文件
