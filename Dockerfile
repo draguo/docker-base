@@ -31,6 +31,7 @@ RUN apt-get update; \
     libzip-dev \
     libsodium-dev \
     libbrotli-dev \
+    nginx \
     # Install PHP extensions (included with dunglas/frankenphp)
     && install-php-extensions \
     bz2 \
@@ -69,12 +70,6 @@ RUN arch="$(uname -m)" \
     -O /usr/bin/supercronic \
     && chmod +x /usr/bin/supercronic \
     && mkdir -p /etc/supercronic
-
-# nginx
-RUN set -x \
-    # Install nginx
-    && apt-get install \
-    nginx
 
 # 复制配置文件
 COPY supervisord.*.conf /etc/supervisor/conf.d/
