@@ -74,6 +74,7 @@ RUN arch="$(uname -m)" \
 # 复制配置文件
 COPY supervisord.*.conf /etc/supervisor/conf.d/
 COPY php.ini ${PHP_INI_DIR}/conf.d/99-octane.ini
+COPY default.conf /etc/nginx/conf.d/default.conf
 COPY start-container /usr/local/bin/start-container
 
 COPY --link --from=vendor /usr/bin/composer /usr/bin/composer
