@@ -23,6 +23,8 @@ RUN apt-get update; \
     bash \
     curl \
     wget \
+    less \
+    vim \
     ca-certificates \
     supervisor \
     zip \
