@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - g1 # 触发工作流的分支
+  workflow_dispatch:
 
 jobs:
   build:
