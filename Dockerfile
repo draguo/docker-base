@@ -59,7 +59,6 @@ RUN set -x \
     optipng \
     pngquant
 
-# 分开安装 ImageMagick 相关包，避免依赖冲突
 RUN set -x \
     && apk add --no-cache \
     ghostscript
@@ -73,10 +72,10 @@ RUN set -x \
     imagemagick \
     imagemagick-libs
 
+# 先更新包索引，然后单独安装 graphicsmagick
 RUN set -x \
-    && apk add --no-cache \
-    graphicsmagick \
-    graphicsmagick-libs
+    && apk update \
+    && apk add --no-cache graphicsmagick
 
 RUN set -x \
     && apk add --no-cache c-client
@@ -136,7 +135,6 @@ RUN set -x \
 RUN set -x \
     && install-php-extensions opcache
 
-# 如果 ImageMagick 扩展安装失败，先跳过
 RUN set -x \
     && apk add --no-cache imagemagick-dev \
     && install-php-extensions imagick || echo "imagick extension installation skipped"
