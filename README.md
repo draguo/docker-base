@@ -1,3 +1,3 @@
 # base
 docker base image
-for g1
+for g1 bsy
