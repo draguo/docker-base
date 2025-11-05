@@ -6,32 +6,27 @@ WORKDIR /var/www/html
 
 ENV TZ=Asia/Shanghai
 
+RUN apk add --no-cache wget curl
+
 ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
-## 安装基础环境
 RUN apk upgrade \
-    && apk add bash \
+    && apk add --no-cache bash \
     ca-certificates \
     openssl \
     && update-ca-certificates \
-    ## Fix su execution (eg for tests)
     && mkdir -p /etc/pam.d/ \
     && echo 'auth sufficient pam_rootok.so' >> /etc/pam.d/su
 
-
 RUN set -x \
-    # Install services \
-    && apk add \
-    wget \
-    curl \
+    && apk add --no-cache \
     sed \
     tzdata \
     busybox-suid
 
 RUN set -x \
-    && apk add shadow \
-    && apk add \
-    # Install common tools
+    && apk add --no-cache shadow \
+    && apk add --no-cache \
     zip \
     unzip \
     bzip2 \
@@ -42,68 +37,105 @@ RUN set -x \
     patch \
     supervisor
 
+RUN set -x \
+    && apk add --no-cache \
+    libjpeg-turbo \
+    libpng \
+    libwebp \
+    freetype \
+    libzip \
+    icu-libs \
+    libxslt \
+    libmemcached-libs \
+    yaml \
+    rabbitmq-c \
+    libldap \
+    libpq
 
 RUN set -x \
-    # Install php environment
-    && apk add \
-    imagemagick \
-    graphicsmagick \
-    ghostscript \
+    && apk add --no-cache \
     jpegoptim \
     pngcrush \
     optipng \
-    pngquant \
+    pngquant
+
+RUN set -x \
+    && apk add --no-cache \
+    ghostscript \
     vips \
-    rabbitmq-c \
-    c-client \
-    # Libraries
-    libldap \
-    icu-libs \
-    libintl \
-    libpq \
-    libxslt \
-    libzip \
-    libmemcached \
-    yaml \
-    # Install extensions
+    imagemagick \
+    imagemagick-libs \
+    graphicsmagick \
+    graphicsmagick-libs
+
+RUN set -x \
+    && apk add --no-cache c-client
+
+RUN set -x \
     && install-php-extensions \
     bcmath \
     bz2 \
     soap \
     calendar \
     exif \
-    ffi \
     intl \
     gettext \
-    ldap \
     mysqli \
-    imap \
     pcntl \
     pdo_mysql \
     pdo_pgsql \
     pgsql \
     sockets \
+    zip
+
+RUN set -x \
+    && apk add --no-cache libzip-dev libldap-dev \
+    && docker-php-ext-configure ldap --with-libdir=lib/ \
+    && install-php-extensions ldap
+
+RUN set -x \
+    && apk add --no-cache freetype-dev libjpeg-turbo-dev libpng-dev libwebp-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && install-php-extensions gd
+
+RUN set -x \
+    && install-php-extensions \
     sysvmsg \
     sysvsem \
     sysvshm \
-    shmop \
-    xsl \
-    zip \
-    gd \
-    gettext \
-    opcache \
+    shmop
+
+RUN set -x \
+    && apk add --no-cache libxslt-dev \
+    && install-php-extensions xsl
+
+RUN set -x \
+    && install-php-extensions \
     redis \
-    imagick \
     igbinary \
-    memcached \
-    && docker-php-source delete \
+    memcached
+
+RUN set -x \
+    && apk add --no-cache imap-dev \
+    && docker-php-ext-configure imap --with-imap-ssl \
+    && install-php-extensions imap
+
+RUN set -x \
+    && install-php-extensions ffi
+
+RUN set -x \
+    && install-php-extensions opcache
+
+RUN set -x \
+    && apk add --no-cache imagemagick-dev \
+    && install-php-extensions imagick
+
+RUN docker-php-source delete \
     && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
 
-# composer
 RUN curl -o /usr/bin/composer https://mirrors.aliyun.com/composer/composer.phar \
     && chmod +x /usr/bin/composer
 
-# 配置文件
 COPY conf/ /opt/docker/
 COPY conf/etc/php/php.ini ${PHP_INI_DIR}/conf.d/99-php.ini
 
