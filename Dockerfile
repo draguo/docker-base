@@ -1,5 +1,5 @@
-ARG PHP_VERSION=8.2
-ARG FRANKENPHP_VERSION=1.3.6
+ARG PHP_VERSION=8.4
+ARG FRANKENPHP_VERSION=1.12.2
 ARG COMPOSER_VERSION=2.8
 
 FROM composer:${COMPOSER_VERSION} AS vendor
@@ -52,7 +52,7 @@ RUN apt-get update; \
     && apt-get clean \
     && docker-php-source delete \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && rm /var/log/lastlog /var/log/faillog
+    && rm -f /var/log/lastlog /var/log/faillog
 
 
 RUN arch="$(uname -m)" \
