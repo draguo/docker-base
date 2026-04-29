@@ -71,10 +71,11 @@ RUN arch="$(uname -m)" \
 COPY supervisord.*.conf /etc/supervisor/conf.d/
 COPY php.ini ${PHP_INI_DIR}/conf.d/99-octane.ini
 COPY start-container /usr/local/bin/start-container
+COPY start-octane /usr/local/bin/start-octane
 
 COPY --link --from=vendor /usr/bin/composer /usr/bin/composer
 
-RUN chmod +x /usr/local/bin/start-container
+RUN chmod +x /usr/local/bin/start-container /usr/local/bin/start-octane
 
 EXPOSE 8000
 

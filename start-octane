@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_DIR="${APP_DIR:-/var/www/html}"
+HOST="${OCTANE_HOST:-0.0.0.0}"
+PORT="${OCTANE_PORT:-8000}"
+WORKERS_SETTING="${OCTANE_WORKERS:-auto}"
+MAX_REQUESTS="${OCTANE_MAX_REQUESTS:-}"
+MAX_WORKERS="${OCTANE_MAX_WORKERS:-}"
+MEMORY_PER_WORKER_MB="${OCTANE_MEMORY_PER_WORKER_MB:-256}"
+MEMORY_RESERVE_MB="${OCTANE_MEMORY_RESERVE_MB:-512}"
+
+calculate_workers() {
+    local cpu_count mem_total_mb mem_limited_mb available_mem_mb workers_by_mem workers
+
+    cpu_count="$(nproc)"
+    mem_total_mb="$(awk '/MemTotal/ { print int($2 / 1024) }' /proc/meminfo)"
+    mem_limited_mb="$mem_total_mb"
+
+    if [ -r /sys/fs/cgroup/memory.max ]; then
+        local cgroup_limit
+        cgroup_limit="$(cat /sys/fs/cgroup/memory.max)"
+        if [ "$cgroup_limit" != "max" ]; then
+            mem_limited_mb="$(( cgroup_limit / 1024 / 1024 ))"
+        fi
+    elif [ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
+        local cgroup_limit
+        cgroup_limit="$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes)"
+        if [ "$cgroup_limit" -gt 0 ] && [ "$cgroup_limit" -lt 9223372036854771712 ]; then
+            mem_limited_mb="$(( cgroup_limit / 1024 / 1024 ))"
+        fi
+    fi
+
+    if [ "$mem_limited_mb" -lt "$mem_total_mb" ]; then
+        mem_total_mb="$mem_limited_mb"
+    fi
+
+    available_mem_mb="$(( mem_total_mb - MEMORY_RESERVE_MB ))"
+    if [ "$available_mem_mb" -lt "$MEMORY_PER_WORKER_MB" ]; then
+        workers_by_mem=1
+    else
+        workers_by_mem="$(( available_mem_mb / MEMORY_PER_WORKER_MB ))"
+    fi
+
+    workers="$cpu_count"
+    if [ "$workers_by_mem" -lt "$workers" ]; then
+        workers="$workers_by_mem"
+    fi
+
+    if [ -n "$MAX_WORKERS" ] && [ "$MAX_WORKERS" -gt 0 ] && [ "$workers" -gt "$MAX_WORKERS" ]; then
+        workers="$MAX_WORKERS"
+    fi
+
+    if [ "$workers" -lt 1 ]; then
+        workers=1
+    fi
+
+    printf '%s' "$workers"
+}
+
+if [ "$WORKERS_SETTING" = "auto" ]; then
+    WORKERS="$(calculate_workers)"
+else
+    WORKERS="$WORKERS_SETTING"
+fi
+
+echo "Starting Octane with FrankenPHP: host=${HOST} port=${PORT} workers=${WORKERS} max_requests=${MAX_REQUESTS:-default}"
+
+cd "$APP_DIR"
+
+CMD=(
+    php artisan octane:start
+    --server=frankenphp
+    --host="${HOST}"
+    --port="${PORT}"
+    --workers="${WORKERS}"
+)
+
+if [ -n "$TASK_WORKERS" ]; then
+    CMD+=(--task-workers="${TASK_WORKERS}")
+fi
+
+if [ -n "$MAX_REQUESTS" ]; then
+    CMD+=(--max-requests="${MAX_REQUESTS}")
+fi
+
+exec "${CMD[@]}"
