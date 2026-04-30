@@ -10,25 +10,55 @@ MAX_WORKERS="${OCTANE_MAX_WORKERS:-}"
 MEMORY_PER_WORKER_MB="${OCTANE_MEMORY_PER_WORKER_MB:-256}"
 MEMORY_RESERVE_MB="${OCTANE_MEMORY_RESERVE_MB:-512}"
 
+is_positive_int() {
+    case "${1:-}" in
+        ''|*[!0-9]*)
+            return 1
+            ;;
+        *)
+            [ "$1" -gt 0 ]
+            ;;
+    esac
+}
+
 calculate_workers() {
     local cpu_count mem_total_mb mem_limited_mb available_mem_mb workers_by_mem workers
 
-    cpu_count="$(nproc)"
-    mem_total_mb="$(awk '/MemTotal/ { print int($2 / 1024) }' /proc/meminfo)"
+    cpu_count="$(
+        nproc 2>/dev/null \
+        || getconf _NPROCESSORS_ONLN 2>/dev/null \
+        || printf '1'
+    )"
+    mem_total_mb="$(
+        awk '/MemTotal/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null \
+        || printf '1024'
+    )"
     mem_limited_mb="$mem_total_mb"
+
+    if ! is_positive_int "$cpu_count"; then
+        cpu_count=1
+    fi
+
+    if ! is_positive_int "$mem_total_mb"; then
+        mem_total_mb=1024
+    fi
 
     if [ -r /sys/fs/cgroup/memory.max ]; then
         local cgroup_limit
         cgroup_limit="$(cat /sys/fs/cgroup/memory.max)"
-        if [ "$cgroup_limit" != "max" ]; then
+        if [ "$cgroup_limit" != "max" ] && is_positive_int "$cgroup_limit"; then
             mem_limited_mb="$(( cgroup_limit / 1024 / 1024 ))"
         fi
     elif [ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
         local cgroup_limit
         cgroup_limit="$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes)"
-        if [ "$cgroup_limit" -gt 0 ] && [ "$cgroup_limit" -lt 9223372036854771712 ]; then
+        if is_positive_int "$cgroup_limit" && [ "$cgroup_limit" -lt 9223372036854771712 ]; then
             mem_limited_mb="$(( cgroup_limit / 1024 / 1024 ))"
         fi
+    fi
+
+    if ! is_positive_int "$mem_limited_mb"; then
+        mem_limited_mb="$mem_total_mb"
     fi
 
     if [ "$mem_limited_mb" -lt "$mem_total_mb" ]; then
@@ -47,7 +77,7 @@ calculate_workers() {
         workers="$workers_by_mem"
     fi
 
-    if [ -n "$MAX_WORKERS" ] && [ "$MAX_WORKERS" -gt 0 ] && [ "$workers" -gt "$MAX_WORKERS" ]; then
+    if is_positive_int "$MAX_WORKERS" && [ "$workers" -gt "$MAX_WORKERS" ]; then
         workers="$MAX_WORKERS"
     fi
 
@@ -64,6 +94,11 @@ else
     WORKERS="$WORKERS_SETTING"
 fi
 
+if ! is_positive_int "$WORKERS"; then
+    echo "Invalid worker count: ${WORKERS}" >&2
+    exit 1
+fi
+
 echo "Starting Octane with FrankenPHP: host=${HOST} port=${PORT} workers=${WORKERS} max_requests=${MAX_REQUESTS:-default}"
 
 cd "$APP_DIR"
@@ -75,10 +110,6 @@ CMD=(
     --port="${PORT}"
     --workers="${WORKERS}"
 )
-
-if [ -n "$TASK_WORKERS" ]; then
-    CMD+=(--task-workers="${TASK_WORKERS}")
-fi
 
 if [ -n "$MAX_REQUESTS" ]; then
     CMD+=(--max-requests="${MAX_REQUESTS}")
